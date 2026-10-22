@@ -1,7 +1,7 @@
 import time
 import tkinter as tk
 from tkinter import ttk
-from src.algorithms import solve_bfs, solve_dfs
+from src.algorithms import solve_bfs, solve_dfs, solve_iddfs
 from src.puzzle import GOAL_STATE
 
 
@@ -165,6 +165,12 @@ class PuzzleGUI:
       start_time = time.time()
       path, state_trace, nodes_expanded, depth = solve_dfs(self.initial_state)
       elapsed_time = (time.time() - start_time) * 1000
+    elif selected_algo == "Iterative DFS":
+          start_time = time.time()
+          path, state_trace, nodes_expanded, depth = solve_iddfs(
+            self.initial_state
+          )
+          elapsed_time = (time.time() - start_time) * 1000
     else:
       self.lbl_status.config(
           text=f"Status: {selected_algo} not implemented yet!"

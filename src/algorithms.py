@@ -71,3 +71,83 @@ def solve_dfs(initial_state):
         frontier.append(child_node)
 
   return None, None, nodes_expanded, 0
+
+def depth_limited_dfs(node, goal_state, limit, path_visited, nodes_expanded_counter):
+  """Helper function that executes Depth-Limited DFS up to a given depth limit."""
+  # Goal test
+  if node.state == goal_state:
+    return node, False
+
+  # Reached depth limit without finding goal
+  if node.depth >= limit:
+    return None, True  # True indicates cut-off occurred
+
+  nodes_expanded_counter[0] += 1
+  cutoff_occurred = False
+
+  for action, neighbor_state in get_neighbors(node.state):
+    # Avoid cycles on the current active search branch
+    if neighbor_state not in path_visited:
+      path_visited.add(neighbor_state)
+      child_node = Node(
+          neighbor_state, parent=node, action=action, depth=node.depth + 1
+      )
+
+      result, cutoff = depth_limited_dfs(
+          child_node,
+          goal_state,
+          limit,
+          path_visited,
+          nodes_expanded_counter,
+      )
+
+      if cutoff:
+        cutoff_occurred = True
+
+      if result is not None:
+        return result, False
+
+      # Backtrack path visited state for sibling branches
+      path_visited.remove(neighbor_state)
+
+  return None, cutoff_occurred
+
+
+def solve_iddfs(initial_state, max_depth=50):
+  """Solves the 8-puzzle using Iterative Deepening DFS (IDDFS)."""
+  total_nodes_expanded = [0]
+
+  for limit in range(max_depth + 1):
+    start_node = Node(initial_state)
+    path_visited = {initial_state}
+
+    result_node, cutoff_occurred = depth_limited_dfs(
+        start_node,
+        GOAL_STATE,
+        limit,
+        path_visited,
+        total_nodes_expanded,
+    )
+
+    if result_node is not None:
+      # Reconstruct state and action path
+      path = []
+      states = []
+      curr = result_node
+      while curr:
+        states.append(curr.state)
+        if curr.action:
+          path.append(curr.action)
+        curr = curr.parent
+      return (
+          path[::-1],
+          states[::-1],
+          total_nodes_expanded[0],
+          result_node.depth,
+      )
+
+    # If no cut-off occurred during the search, the state space is exhausted
+    if not cutoff_occurred:
+      break
+
+  return None, None, total_nodes_expanded[0], 0
