@@ -1,7 +1,7 @@
 import time
 import tkinter as tk
 from tkinter import ttk
-from src.algorithms import solve_bfs, solve_dfs, solve_iddfs
+from src.algorithms import solve_astar, solve_bfs, solve_dfs, solve_iddfs
 from src.puzzle import GOAL_STATE
 
 
@@ -171,11 +171,18 @@ class PuzzleGUI:
             self.initial_state
           )
           elapsed_time = (time.time() - start_time) * 1000
-    else:
-      self.lbl_status.config(
-          text=f"Status: {selected_algo} not implemented yet!"
-      )
-      return
+    elif selected_algo == "A* (Manhattan)":
+          start_time = time.time()
+          path, state_trace, nodes_expanded, depth = solve_astar(
+              self.initial_state, heuristic_type="manhattan"
+          )
+          elapsed_time = (time.time() - start_time) * 1000
+    elif selected_algo == "A* (Euclidean)":
+          start_time = time.time()
+          path, state_trace, nodes_expanded, depth = solve_astar(
+              self.initial_state, heuristic_type="euclidean"
+          )
+          elapsed_time = (time.time() - start_time) * 1000
 
     if path is not None:
       self.lbl_cost.config(text=f"Cost of path: {len(path)}")

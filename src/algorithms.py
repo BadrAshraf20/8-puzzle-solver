@@ -1,6 +1,20 @@
+import heapq
+import math
 from collections import deque
 from src.node import Node
 from src.puzzle import get_neighbors, GOAL_STATE
+
+GOAL_POSITIONS = {
+    0: (0, 0),
+    1: (0, 1),
+    2: (0, 2),
+    3: (1, 0),
+    4: (1, 1),
+    5: (1, 2),
+    6: (2, 0),
+    7: (2, 1),
+    8: (2, 2),
+}
 
 def solve_bfs(initial_state):
     """Solves the 8-puzzle using Breadth-First Search (BFS)."""
@@ -151,3 +165,97 @@ def solve_iddfs(initial_state, max_depth=50):
       break
 
   return None, None, total_nodes_expanded[0], 0
+
+
+def heuristic_manhattan(state):
+  """Calculates Manhattan distance heuristic for 8-puzzle."""
+  h = 0
+  for r in range(3):
+    for c in range(3):
+      val = state[r][c]
+      if val != 0:  # Skip blank tile
+        gr, gc = GOAL_POSITIONS[val]
+        h += abs(r - gr) + abs(c - gc)
+  return h
+
+
+def heuristic_euclidean(state):
+  """Calculates Euclidean distance heuristic for 8-puzzle."""
+  h = 0.0
+  for r in range(3):
+    for c in range(3):
+      val = state[r][c]
+      if val != 0:  # Skip blank tile
+        gr, gc = GOAL_POSITIONS[val]
+        h += math.sqrt((r - gr) ** 2 + (c - gc) ** 2)
+  return h
+
+
+def solve_astar(initial_state, heuristic_type="manhattan"):
+  """Solves the 8-puzzle using A* Search with Manhattan or Euclidean heuristic."""
+  # Select heuristic function
+  if heuristic_type == "manhattan":
+    h_func = heuristic_manhattan
+  elif heuristic_type == "euclidean":
+    h_func = heuristic_euclidean
+  else:
+    raise ValueError("Invalid heuristic_type. Use 'manhattan' or 'euclidean'.")
+
+  start_node = Node(
+      initial_state,
+      cost=0,
+      heuristic=h_func(initial_state),
+  )
+
+  # Priority queue stores tuples: (f_cost, counter, node)
+  # counter breaks ties when f_cost values are equal
+  counter = 0
+  frontier = []
+  heapq.heappush(
+      frontier, (start_node.cost + start_node.heuristic, counter, start_node)
+  )
+
+  # Visited dictionary tracks lowest g(n) path cost reached for each state
+  visited = {initial_state: 0}
+  nodes_expanded = 0
+
+  while frontier:
+    _, _, node = heapq.heappop(frontier)
+
+    # Goal test
+    if node.state == GOAL_STATE:
+      path = []
+      states = []
+      curr = node
+      while curr:
+        states.append(curr.state)
+        if curr.action:
+          path.append(curr.action)
+        curr = curr.parent
+      return path[::-1], states[::-1], nodes_expanded, node.depth
+
+    nodes_expanded += 1
+
+    for action, neighbor_state in get_neighbors(node.state):
+      g_cost = node.cost + 1  # Step cost is always 1
+
+      if (
+          neighbor_state not in visited
+          or g_cost < visited[neighbor_state]
+      ):
+        visited[neighbor_state] = g_cost
+        counter += 1
+        h_cost = h_func(neighbor_state)
+        child_node = Node(
+            neighbor_state,
+            parent=node,
+            action=action,
+            depth=node.depth + 1,
+            cost=g_cost,
+            heuristic=h_cost,
+        )
+        heapq.heappush(
+            frontier, (g_cost + h_cost, counter, child_node)
+        )
+
+  return None, None, nodes_expanded, 0
