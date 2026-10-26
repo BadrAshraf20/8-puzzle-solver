@@ -216,59 +216,70 @@ class PuzzleGUI:
     self.solve_btn.config(state=state)
     self.stop_btn.config(state="normal" if state == "disabled" else "disabled")
 
+  def reset_metrics(self):
+      """Resets all metrics display labels back to default initial state."""
+      self.lbl_cost.config(text="Cost of path: -")
+      self.lbl_expanded.config(text="Nodes expanded: -")
+      self.lbl_depth.config(text="Search depth: -")
+      self.lbl_time.config(text="Running time: -")
+      self.lbl_status.config(text="Status: Ready")
+
   def on_preset_selected(self, event):
-    selected = self.preset_var.get()
-    self.initial_state = self.presets[selected]
-    self._draw_board(self.initial_state)
+      selected = self.preset_var.get()
+      self.initial_state = self.presets[selected]
+      self._draw_board(self.initial_state)
+      self.reset_metrics()  # Reset metrics on new preset selection
 
   def open_custom_input_dialog(self):
-    dialog = tk.Toplevel(self.root)
-    dialog.title("Enter Custom Board State")
-    dialog.geometry("320x220")
-    dialog.configure(bg="#2c3e50")
-    dialog.grab_set()
+      dialog = tk.Toplevel(self.root)
+      dialog.title("Enter Custom Board State")
+      dialog.geometry("320x220")
+      dialog.configure(bg="#2c3e50")
+      dialog.grab_set()
 
-    tk.Label(
-        dialog,
-        text=(
-            "Enter 9 numbers (0-8) separated by spaces:\n(Use 0 for blank"
-            " space)"
-        ),
-        fg="#ecf0f1",
-        bg="#2c3e50",
-        font=("Helvetica", 10),
-    ).pack(pady=10)
+      tk.Label(
+          dialog,
+          text=(
+              "Enter 9 numbers (0-8) separated by spaces:\n(Use 0 for blank"
+              " space)"
+          ),
+          fg="#ecf0f1",
+          bg="#2c3e50",
+          font=("Helvetica", 10),
+      ).pack(pady=10)
 
-    entry = tk.Entry(dialog, font=("Helvetica", 12), width=20)
-    entry.insert(0, "1 2 5 3 4 0 6 7 8")
-    entry.pack(pady=10)
+      entry = tk.Entry(dialog, font=("Helvetica", 12), width=20)
+      entry.insert(0, "1 2 5 3 4 0 6 7 8")
+      entry.pack(pady=10)
 
-    def apply_custom_input():
-      try:
-        raw_vals = [int(x) for x in entry.get().strip().split()]
-        if is_valid_board(raw_vals):
-          self.initial_state = parse_input_to_matrix(raw_vals)
-          self._draw_board(self.initial_state)
-          self.preset_var.set("Custom State")
-          dialog.destroy()
-        else:
+      def apply_custom_input():
+        try:
+          raw_vals = [int(x) for x in entry.get().strip().split()]
+          if is_valid_board(raw_vals):
+            self.initial_state = parse_input_to_matrix(raw_vals)
+            self._draw_board(self.initial_state)
+            self.preset_var.set("Custom State")
+            self.reset_metrics()  # Reset metrics on custom board input
+            dialog.destroy()
+          else:
+            messagebox.showerror(
+                "Invalid Input",
+                "Please enter exactly 9 unique numbers from 0 to 8.",
+            )
+        except ValueError:
           messagebox.showerror(
               "Invalid Input",
-              "Please enter exactly 9 unique numbers from 0 to 8.",
+              "Please enter valid integers separated by spaces.",
           )
-      except ValueError:
-        messagebox.showerror(
-            "Invalid Input", "Please enter valid integers separated by spaces."
-        )
 
-    tk.Button(
-        dialog,
-        text="Apply Board State",
-        bg="#27ae60",
-        fg="white",
-        font=("Helvetica", 10, "bold"),
-        command=apply_custom_input,
-    ).pack(pady=10)
+      tk.Button(
+          dialog,
+          text="Apply Board State",
+          bg="#27ae60",
+          fg="white",
+          font=("Helvetica", 10, "bold"),
+          command=apply_custom_input,
+      ).pack(pady=10)
 
   def _draw_board(self, state):
     for r in range(3):
@@ -282,12 +293,13 @@ class PuzzleGUI:
           )
 
   def start_solver_thread(self):
-    """Launches the solver on a background thread to prevent UI freezing."""
-    self.is_running = True
-    self.set_controls_state("disabled")
-    self.lbl_status.config(text="Status: Thinking... Searching for path...")
+      """Launches the solver on a background thread to prevent UI freezing."""
+      self.is_running = True
+      self.reset_metrics()  # Clear old metrics right as a new search starts
+      self.set_controls_state("disabled")
+      self.lbl_status.config(text="Status: Thinking... Searching for path...")
 
-    threading.Thread(target=self.run_solver, daemon=True).start()
+      threading.Thread(target=self.run_solver, daemon=True).start()
 
   def run_solver(self):
     selected_algo = self.algo_var.get()
