@@ -1,8 +1,15 @@
+# src/gui.py
+import threading
 import time
 import tkinter as tk
-from tkinter import ttk
+from tkinter import messagebox, ttk
 from src.algorithms import solve_astar, solve_bfs, solve_dfs, solve_iddfs
-from src.puzzle import GOAL_STATE
+from src.puzzle import (
+    GOAL_STATE,
+    PRESET_EXAMPLES,
+    is_valid_board,
+    parse_input_to_matrix,
+)
 
 
 class PuzzleGUI:
@@ -10,15 +17,23 @@ class PuzzleGUI:
   def __init__(self, root):
     self.root = root
     self.root.title("8-Puzzle Search Algorithm Visualizer")
-    self.root.geometry("520x620")
+    self.root.geometry("560x720")
     self.root.configure(bg="#2c3e50")
 
-    # Configuration
-    self.initial_state = ((1, 2, 3), (4, 0, 5), (6, 7, 8))
+    # Map cleaner display names to board states without hardcoded step counts
+    self.presets = {
+        "Easy": PRESET_EXAMPLES["Easy (3 moves)"],
+        "Medium": PRESET_EXAMPLES["Medium (14 moves)"],
+        "Hard": PRESET_EXAMPLES["Hard (No solution)"],
+    }
+
+    self.initial_state = self.presets["Easy"]
     self.goal_state = GOAL_STATE
 
     self.full_state_path = []
     self.current_step = 0
+    self.is_running = False
+    self.animation_job = None
 
     self._build_ui()
     self._draw_board(self.initial_state)
@@ -33,7 +48,7 @@ class PuzzleGUI:
     )
     title.pack(pady=10)
 
-    # Grid Frame
+    # 3x3 Board Grid
     self.grid_frame = tk.Frame(self.root, bg="#34495e", padx=10, pady=10)
     self.grid_frame.pack(pady=10)
 
@@ -52,7 +67,40 @@ class PuzzleGUI:
         lbl.grid(row=r, column=c, padx=5, pady=5)
         self.tiles[r][c] = lbl
 
-    # Controls
+    # Board Input Control Bar
+    input_frame = tk.Frame(self.root, bg="#2c3e50")
+    input_frame.pack(pady=5)
+
+    tk.Label(
+        input_frame,
+        text="Preset Input:",
+        font=("Helvetica", 10),
+        fg="#ecf0f1",
+        bg="#2c3e50",
+    ).grid(row=0, column=0, padx=5)
+
+    self.preset_var = tk.StringVar(value="Easy")
+    self.preset_menu = ttk.Combobox(
+        input_frame,
+        textvariable=self.preset_var,
+        values=list(self.presets.keys()),
+        state="readonly",
+        width=12,
+    )
+    self.preset_menu.grid(row=0, column=1, padx=5)
+    self.preset_menu.bind("<<ComboboxSelected>>", self.on_preset_selected)
+
+    self.custom_btn = tk.Button(
+        input_frame,
+        text="Custom Input...",
+        font=("Helvetica", 9, "bold"),
+        bg="#3498db",
+        fg="white",
+        command=self.open_custom_input_dialog,
+    )
+    self.custom_btn.grid(row=0, column=2, padx=5)
+
+    # Algorithm Controls & Stop Button
     control_frame = tk.Frame(self.root, bg="#2c3e50")
     control_frame.pack(pady=10)
 
@@ -65,24 +113,41 @@ class PuzzleGUI:
     ).grid(row=0, column=0, padx=5)
 
     self.algo_var = tk.StringVar(value="BFS")
-    algo_menu = ttk.Combobox(
+    self.algo_menu = ttk.Combobox(
         control_frame,
         textvariable=self.algo_var,
-        values=["BFS", "DFS", "Iterative DFS", "A* (Manhattan)", "A* (Euclidean)"],
+        values=[
+            "BFS",
+            "DFS",
+            "Iterative DFS",
+            "A* (Manhattan)",
+            "A* (Euclidean)",
+        ],
         state="readonly",
         width=15,
     )
-    algo_menu.grid(row=0, column=1, padx=5)
+    self.algo_menu.grid(row=0, column=1, padx=5)
 
-    solve_btn = tk.Button(
+    self.solve_btn = tk.Button(
         control_frame,
         text="Solve & Animate",
         font=("Helvetica", 11, "bold"),
         bg="#27ae60",
         fg="white",
-        command=self.run_solver,
+        command=self.start_solver_thread,
     )
-    solve_btn.grid(row=0, column=2, padx=10)
+    self.solve_btn.grid(row=0, column=2, padx=5)
+
+    self.stop_btn = tk.Button(
+        control_frame,
+        text="Stop",
+        font=("Helvetica", 11, "bold"),
+        bg="#e74c3c",
+        fg="white",
+        state="disabled",
+        command=self.stop_execution,
+    )
+    self.stop_btn.grid(row=0, column=3, padx=5)
 
     # Metrics Panel
     self.metrics_frame = tk.LabelFrame(
@@ -142,6 +207,69 @@ class PuzzleGUI:
     )
     self.lbl_status.pack(fill="x", pady=(5, 0))
 
+  def set_controls_state(self, state):
+    """Enables or disables interactive controls to freeze/unfreeze options."""
+    combo_state = "readonly" if state == "normal" else "disabled"
+    self.preset_menu.config(state=combo_state)
+    self.algo_menu.config(state=combo_state)
+    self.custom_btn.config(state=state)
+    self.solve_btn.config(state=state)
+    self.stop_btn.config(state="normal" if state == "disabled" else "disabled")
+
+  def on_preset_selected(self, event):
+    selected = self.preset_var.get()
+    self.initial_state = self.presets[selected]
+    self._draw_board(self.initial_state)
+
+  def open_custom_input_dialog(self):
+    dialog = tk.Toplevel(self.root)
+    dialog.title("Enter Custom Board State")
+    dialog.geometry("320x220")
+    dialog.configure(bg="#2c3e50")
+    dialog.grab_set()
+
+    tk.Label(
+        dialog,
+        text=(
+            "Enter 9 numbers (0-8) separated by spaces:\n(Use 0 for blank"
+            " space)"
+        ),
+        fg="#ecf0f1",
+        bg="#2c3e50",
+        font=("Helvetica", 10),
+    ).pack(pady=10)
+
+    entry = tk.Entry(dialog, font=("Helvetica", 12), width=20)
+    entry.insert(0, "1 2 5 3 4 0 6 7 8")
+    entry.pack(pady=10)
+
+    def apply_custom_input():
+      try:
+        raw_vals = [int(x) for x in entry.get().strip().split()]
+        if is_valid_board(raw_vals):
+          self.initial_state = parse_input_to_matrix(raw_vals)
+          self._draw_board(self.initial_state)
+          self.preset_var.set("Custom State")
+          dialog.destroy()
+        else:
+          messagebox.showerror(
+              "Invalid Input",
+              "Please enter exactly 9 unique numbers from 0 to 8.",
+          )
+      except ValueError:
+        messagebox.showerror(
+            "Invalid Input", "Please enter valid integers separated by spaces."
+        )
+
+    tk.Button(
+        dialog,
+        text="Apply Board State",
+        bg="#27ae60",
+        fg="white",
+        font=("Helvetica", 10, "bold"),
+        command=apply_custom_input,
+    ).pack(pady=10)
+
   def _draw_board(self, state):
     for r in range(3):
       for c in range(3):
@@ -153,50 +281,86 @@ class PuzzleGUI:
               text=str(val), bg="#e74c3c", fg="white", relief="raised"
           )
 
+  def start_solver_thread(self):
+    """Launches the solver on a background thread to prevent UI freezing."""
+    self.is_running = True
+    self.set_controls_state("disabled")
+    self.lbl_status.config(text="Status: Thinking... Searching for path...")
+
+    threading.Thread(target=self.run_solver, daemon=True).start()
+
   def run_solver(self):
     selected_algo = self.algo_var.get()
+    start_time = time.time()
 
-    # Routing based on selected algorithm
     if selected_algo == "BFS":
-      start_time = time.time()
       path, state_trace, nodes_expanded, depth = solve_bfs(self.initial_state)
-      elapsed_time = (time.time() - start_time) * 1000
     elif selected_algo == "DFS":
-      start_time = time.time()
       path, state_trace, nodes_expanded, depth = solve_dfs(self.initial_state)
-      elapsed_time = (time.time() - start_time) * 1000
     elif selected_algo == "Iterative DFS":
-          start_time = time.time()
-          path, state_trace, nodes_expanded, depth = solve_iddfs(
-            self.initial_state
-          )
-          elapsed_time = (time.time() - start_time) * 1000
+      path, state_trace, nodes_expanded, depth = solve_iddfs(self.initial_state)
     elif selected_algo == "A* (Manhattan)":
-          start_time = time.time()
-          path, state_trace, nodes_expanded, depth = solve_astar(
-              self.initial_state, heuristic_type="manhattan"
-          )
-          elapsed_time = (time.time() - start_time) * 1000
+      path, state_trace, nodes_expanded, depth = solve_astar(
+          self.initial_state, heuristic_type="manhattan"
+      )
     elif selected_algo == "A* (Euclidean)":
-          start_time = time.time()
-          path, state_trace, nodes_expanded, depth = solve_astar(
-              self.initial_state, heuristic_type="euclidean"
-          )
-          elapsed_time = (time.time() - start_time) * 1000
+      path, state_trace, nodes_expanded, depth = solve_astar(
+          self.initial_state, heuristic_type="euclidean"
+      )
+
+    elapsed_time = (time.time() - start_time) * 1000
+
+    # Schedule UI updates back on the main thread
+    self.root.after(
+        0,
+        self.handle_solver_results,
+        path,
+        state_trace,
+        nodes_expanded,
+        depth,
+        elapsed_time,
+    )
+
+  def handle_solver_results(
+      self, path, state_trace, nodes_expanded, depth, elapsed_time
+  ):
+    """Processes search results, updates UI labels, and initiates animation or alerts."""
+    if not self.is_running:
+      return  # Search was stopped by user
 
     if path is not None:
+      # 1. Update text metrics
       self.lbl_cost.config(text=f"Cost of path: {len(path)}")
       self.lbl_expanded.config(text=f"Nodes expanded: {nodes_expanded}")
       self.lbl_depth.config(text=f"Search depth: {depth}")
       self.lbl_time.config(text=f"Running time: {elapsed_time:.2f} ms")
 
+      # 2. Clear old negative status and set initial animation status
+      self.lbl_status.config(text="Status: Solution found! Animating...")
+
       self.full_state_path = state_trace
       self.current_step = 0
       self.animate_solution()
     else:
-      self.lbl_status.config(text="Status: No solution found!")
+      # Clear metrics when no path exists
+      self.lbl_cost.config(text="Cost of path: -")
+      self.lbl_expanded.config(text=f"Nodes expanded: {nodes_expanded}")
+      self.lbl_depth.config(text="Search depth: -")
+      self.lbl_time.config(text=f"Running time: {elapsed_time:.2f} ms")
+
+      self.root.bell()
+      messagebox.showwarning(
+          "No Solution Found",
+          "No valid path exists to transition this state into the goal state!",
+      )
+      self.lbl_status.config(text="Status: No solution path exists!")
+      self.set_controls_state("normal")
+      self.is_running = False
 
   def animate_solution(self):
+    if not self.is_running:
+      return
+
     if self.current_step < len(self.full_state_path):
       current_state = self.full_state_path[self.current_step]
       self._draw_board(current_state)
@@ -207,9 +371,23 @@ class PuzzleGUI:
       )
 
       self.current_step += 1
-      self.root.after(600, self.animate_solution)
+      self.animation_job = self.root.after(600, self.animate_solution)
     else:
       self.lbl_status.config(text="Status: Goal State Reached!")
+      self.set_controls_state("normal")
+      self.is_running = False
+
+  def stop_execution(self):
+    """Stops any running search or animation and restores controls."""
+    self.is_running = False
+    if self.animation_job:
+      self.root.after_cancel(self.animation_job)
+      self.animation_job = None
+
+    self.lbl_status.config(
+        text="Status: Execution stopped. Select an option."
+    )
+    self.set_controls_state("normal")
 
 
 def launch_gui():
