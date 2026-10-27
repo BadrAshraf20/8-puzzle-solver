@@ -5,27 +5,32 @@ from collections import deque
 from src.node import Node
 from src.puzzle import GOAL_STATE, get_neighbors, is_solvable
 
+# Retrieve the required coordinates for any number instantly in O(1) time.
 GOAL_POSITIONS = {
-    0: (0, 0),
-    1: (0, 1),
-    2: (0, 2),
-    3: (1, 0),
-    4: (1, 1),
-    5: (1, 2),
-    6: (2, 0),
-    7: (2, 1),
-    8: (2, 2),
+    0: (0, 0), 1: (0, 1), 2: (0, 2),
+    3: (1, 0), 4: (1, 1), 5: (1, 2),
+    6: (2, 0), 7: (2, 1), 8: (2, 2),
 }
 
 
 def solve_bfs(initial_state):
-    """Solves the 8-puzzle using Breadth-First Search (BFS)."""
+    """
+    Solves the 8-puzzle using Breadth-First Search (BFS).
+    - Shortest path for the solution.
+    - A queue is used in exploring nodes.
+    """
     # Solvability Guard: Instant return if mathematically unsolvable
     if not is_solvable(initial_state):
         return None, None, 0, 0
-    
+
     start_node = Node(initial_state)
+
+    # The frontier must hold an entire node, including all its data and
+    # the history of how it was reached.
     frontier = deque([start_node])
+
+    # Has this state appeared before, or not?
+    # Searching within a set happens much faster, in O(1) time.
     visited = {initial_state}
     nodes_expanded = 0
 
@@ -37,34 +42,52 @@ def solve_bfs(initial_state):
             path = []
             states = []
             curr = node
+
+            # We move backward, step by step, gathering the moves and sequences
+            # until we reach the starting point—the one whose "parent" is None.
             while curr:
                 states.append(curr.state)
                 if curr.action:
                     path.append(curr.action)
                 curr = curr.parent
+
             return path[::-1], states[::-1], nodes_expanded, node.depth
 
         nodes_expanded += 1
 
+        # List all possible moves for the empty space for this board
+        # if not visited (child nodes).
         for action, neighbor_state in get_neighbors(node.state):
             if neighbor_state not in visited:
                 visited.add(neighbor_state)
                 child_node = Node(
-                    neighbor_state, parent=node, action=action, depth=node.depth + 1
+                    neighbor_state,
+                    parent=node,
+                    action=action,
+                    depth=node.depth + 1
                 )
                 frontier.append(child_node)
 
+    #The Frontier queue is completely empty, and we haven’t found any solution.
     return None, None, nodes_expanded, 0
 
 
 def solve_dfs(initial_state):
-    """Solves the 8-puzzle using Depth-First Search (DFS)."""
+    """
+    Solves the 8-puzzle using Depth-First Search (DFS).
+    - A stack (list) is used in exploring nodes.
+    - Highly memory-efficient compared to BFS when dealing with
+      massive tree-based problems.
+    """
     # Solvability Guard: Instant return if mathematically unsolvable
     if not is_solvable(initial_state):
         return None, None, 0, 0
-    
+
     start_node = Node(initial_state)
     frontier = [start_node]  # Use standard Python list as a LIFO stack
+
+    # Has this state appeared before, or not?
+    # Searching within a set happens much faster, in O(1) time.
     visited = set()
     nodes_expanded = 0
 
@@ -76,6 +99,9 @@ def solve_dfs(initial_state):
             path = []
             states = []
             curr = node
+
+            # We move backward, step by step, gathering the moves and sequences
+            # until we reach the starting point—the one whose "parent" is None.
             while curr:
                 states.append(curr.state)
                 if curr.action:
@@ -89,19 +115,34 @@ def solve_dfs(initial_state):
         visited.add(node.state)
         nodes_expanded += 1
 
-        # Explore child nodes
+        # List all possible moves for the empty space for this board
+        # if not visited (child nodes).
         for action, neighbor_state in get_neighbors(node.state):
             if neighbor_state not in visited:
                 child_node = Node(
-                    neighbor_state, parent=node, action=action, depth=node.depth + 1
+                    neighbor_state,
+                    parent=node,
+                    action=action,
+                    depth=node.depth + 1
                 )
                 frontier.append(child_node)
 
+    #The Frontier queue is completely empty, and we haven’t found any solution.
     return None, None, nodes_expanded, 0
 
 
-def depth_limited_dfs(node, goal_state, limit, path_visited, nodes_expanded_counter):
-    """Helper function that executes Depth-Limited DFS up to a given depth limit."""
+def depth_limited_dfs(
+    node,
+    goal_state,
+    limit,
+    path_visited,
+    nodes_expanded_counter
+    ):
+    """
+    Helper function that executes Depth-Limited DFS up to a given depth limit.
+    - It performs a recursive DFS search, but stops upon reaching a
+      specific limit.
+    """
     # Goal test
     if node.state == goal_state:
         return node, False
@@ -118,7 +159,10 @@ def depth_limited_dfs(node, goal_state, limit, path_visited, nodes_expanded_coun
         if neighbor_state not in path_visited:
             path_visited.add(neighbor_state)
             child_node = Node(
-                neighbor_state, parent=node, action=action, depth=node.depth + 1
+                neighbor_state,
+                parent=node,
+                action=action,
+                depth=node.depth + 1
             )
 
             result, cutoff = depth_limited_dfs(
@@ -142,11 +186,14 @@ def depth_limited_dfs(node, goal_state, limit, path_visited, nodes_expanded_coun
 
 
 def solve_iddfs(initial_state, max_depth=50):
-    """Solves the 8-puzzle using Iterative Deepening DFS (IDDFS)."""
+    """
+    Solves the 8-puzzle using Iterative Deepening DFS (IDDFS).
+    - Ensures the optimal path and saves memory
+    """
     # Solvability Guard: Instant return if mathematically unsolvable
     if not is_solvable(initial_state):
         return None, None, 0, 0
-    
+
     total_nodes_expanded = [0]
 
     for limit in range(max_depth + 1):
@@ -161,6 +208,8 @@ def solve_iddfs(initial_state, max_depth=50):
             total_nodes_expanded,
         )
 
+        # We move backward, step by step, gathering the moves and sequences
+        # until we reach the starting point—the one whose "parent" is None.
         if result_node is not None:
             # Reconstruct state and action path
             path = []
@@ -210,18 +259,22 @@ def heuristic_euclidean(state):
 
 
 def solve_astar(initial_state, heuristic_type="manhattan"):
-    """Solves the 8-puzzle using A* Search with Manhattan or Euclidean heuristic."""
+    """
+    Solves the 8-puzzle using A* Search with Manhattan or Euclidean heuristic.
+    """
     # Solvability Guard: Instant return if mathematically unsolvable
     if not is_solvable(initial_state):
         return None, None, 0, 0
-    
+
     # Select heuristic function
     if heuristic_type == "manhattan":
         h_func = heuristic_manhattan
     elif heuristic_type == "euclidean":
         h_func = heuristic_euclidean
     else:
-        raise ValueError("Invalid heuristic_type. Use 'manhattan' or 'euclidean'.")
+        raise ValueError(
+            "Invalid heuristic_type. Use 'manhattan' or 'euclidean'."
+            )
 
     start_node = Node(
         initial_state,
