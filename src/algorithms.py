@@ -322,6 +322,10 @@ def solve_astar(initial_state, heuristic_type="manhattan", cancel_event=None):
 
         _, _, node = heapq.heappop(frontier)
 
+        # Skip stale nodes that were replaced by a cheaper path
+        if node.cost > visited[node.state]:
+            continue
+        
         # Goal test
         if node.state == GOAL_STATE:
             path = []
