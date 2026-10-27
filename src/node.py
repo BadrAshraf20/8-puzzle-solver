@@ -3,7 +3,14 @@ class Node:
     A Node represents a single "snapshot" of the puzzle at a specific moment.
     It keeps track of the board state and the history of how we got here.
     """
-    def __init__(self, state, parent=None, action=None, depth=0, cost=0, heuristic=0):
+    def __init__(
+        self, state,
+        parent=None,
+        action=None,
+        depth=0,
+        cost=0,
+        heuristic=0
+        ):
         # The current layout of the board (stored as a tuple of tuples)
         self.state = state
 

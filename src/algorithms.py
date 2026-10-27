@@ -13,7 +13,7 @@ GOAL_POSITIONS = {
 }
 
 
-def solve_bfs(initial_state):
+def solve_bfs(initial_state, cancel_event=None):
     """
     Solves the 8-puzzle using Breadth-First Search (BFS).
     - Shortest path for the solution.
@@ -35,6 +35,9 @@ def solve_bfs(initial_state):
     nodes_expanded = 0
 
     while frontier:
+        if cancel_event and cancel_event.is_set():
+            return None, None, nodes_expanded, 0
+
         node = frontier.popleft()
 
         if node.state == GOAL_STATE:
@@ -72,7 +75,7 @@ def solve_bfs(initial_state):
     return None, None, nodes_expanded, 0
 
 
-def solve_dfs(initial_state):
+def solve_dfs(initial_state, cancel_event=None):
     """
     Solves the 8-puzzle using Depth-First Search (DFS).
     - A stack (list) is used in exploring nodes.
@@ -92,6 +95,9 @@ def solve_dfs(initial_state):
     nodes_expanded = 0
 
     while frontier:
+        if cancel_event and cancel_event.is_set():
+            return None, None, nodes_expanded, 0
+
         node = frontier.pop()  # Pops from the top of the stack (LIFO)
 
         if node.state == GOAL_STATE:
@@ -136,13 +142,17 @@ def depth_limited_dfs(
     goal_state,
     limit,
     path_visited,
-    nodes_expanded_counter
+    nodes_expanded_counter,
+    cancel_event=None,
     ):
     """
     Helper function that executes Depth-Limited DFS up to a given depth limit.
     - It performs a recursive DFS search, but stops upon reaching a
       specific limit.
     """
+    if cancel_event and cancel_event.is_set():
+        return None, False
+
     # Goal test
     if node.state == goal_state:
         return node, False
@@ -171,7 +181,11 @@ def depth_limited_dfs(
                 limit,
                 path_visited,
                 nodes_expanded_counter,
+                cancel_event,
             )
+
+            if cancel_event and cancel_event.is_set():
+                return None, False
 
             if cutoff:
                 cutoff_occurred = True
@@ -185,7 +199,7 @@ def depth_limited_dfs(
     return None, cutoff_occurred
 
 
-def solve_iddfs(initial_state, max_depth=50):
+def solve_iddfs(initial_state, max_depth=50, cancel_event=None):
     """
     Solves the 8-puzzle using Iterative Deepening DFS (IDDFS).
     - Ensures the optimal path and saves memory
@@ -197,6 +211,9 @@ def solve_iddfs(initial_state, max_depth=50):
     total_nodes_expanded = [0]
 
     for limit in range(max_depth + 1):
+        if cancel_event and cancel_event.is_set():
+            return None, None, total_nodes_expanded[0], 0
+
         start_node = Node(initial_state)
         path_visited = {initial_state}
 
@@ -206,7 +223,11 @@ def solve_iddfs(initial_state, max_depth=50):
             limit,
             path_visited,
             total_nodes_expanded,
+            cancel_event,
         )
+
+        if cancel_event and cancel_event.is_set():
+            return None, None, total_nodes_expanded[0], 0
 
         # We move backward, step by step, gathering the moves and sequences
         # until we reach the starting point—the one whose "parent" is None.
@@ -258,7 +279,7 @@ def heuristic_euclidean(state):
     return h
 
 
-def solve_astar(initial_state, heuristic_type="manhattan"):
+def solve_astar(initial_state, heuristic_type="manhattan", cancel_event=None):
     """
     Solves the 8-puzzle using A* Search with Manhattan or Euclidean heuristic.
     """
@@ -295,6 +316,9 @@ def solve_astar(initial_state, heuristic_type="manhattan"):
     nodes_expanded = 0
 
     while frontier:
+        if cancel_event and cancel_event.is_set():
+            return None, None, nodes_expanded, 0
+
         _, _, node = heapq.heappop(frontier)
 
         # Goal test

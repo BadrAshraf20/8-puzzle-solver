@@ -1,5 +1,6 @@
 # Goal state representation for the 8-puzzle (3x3 grid()
-# We used a tuple within a tuple to ensure the constants are immutable and quick to compare.
+# We used a tuple within a tuple to ensure the constants are immutable
+# and quick to compare.
 GOAL_STATE = ((0, 1, 2), (3, 4, 5), (6, 7, 8))
 
 # Pre-defined preset board examples for testing and visualizer dropdowns
@@ -13,9 +14,10 @@ PRESET_EXAMPLES = {
 
 def count_inversions(state):
     """
-    Counts the number of inversions in a board state.
-    An inversion occurs when a larger tile number appears before a smaller tile number.
-    The blank space (0) is ignored.
+    - Counts the number of inversions in a board state.
+    - An inversion occurs when a larger tile number appears before a smaller
+    tile number.
+    - The blank space (0) is ignored.
     """
     # Flatten the grid and ignore blank tile (0)
     flat_board = [num for row in state for num in row if num != 0]
@@ -23,7 +25,8 @@ def count_inversions(state):
 
     for i in range(len(flat_board)):
         for j in range(i + 1, len(flat_board)):
-            # If it finds a larger number appearing before a smaller number, it increments the counter.
+            # If it finds a larger number appearing before a smaller number,
+            # it increments the counter.
             if flat_board[i] > flat_board[j]:
                 inversions += 1
 
@@ -70,8 +73,9 @@ def find_zero(state):
 
 def get_neighbors(state):
     """
-    Generates all valid child nodes (neighboring board states) from the current node.
-    Moves the blank space (0) Up, Down, Left, or Right within grid boundaries.
+    - Generates all valid child nodes (neighboring board states) from the
+    current node.
+    - Moves the blank space (0) Up, Down, Left, or Right within grid boundaries.
     """
     zero_r, zero_c = find_zero(state)
 
@@ -99,7 +103,9 @@ def get_neighbors(state):
 
 
 def print_board(state):
-    """Prints a 3x3 board in readable grid format."""
+    """
+    Prints a 3x3 board in readable grid format.
+    """
     for row in state:
         print(" ".join(str(val) for val in row))
     print()

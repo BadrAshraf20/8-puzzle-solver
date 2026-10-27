@@ -35,6 +35,8 @@ class PuzzleGUI:
         self.current_step = 0
         self.is_running = False
         self.animation_job = None
+        self.search_id = 0
+        self.cancel_event = None
 
         self._build_ui()
         self._draw_board(self.initial_state)
@@ -325,38 +327,61 @@ class PuzzleGUI:
 
     def start_solver_thread(self):
         """Launches the solver on a background thread to prevent UI freezing."""
+        self.search_id += 1
+        search_id = self.search_id
+        cancel_event = threading.Event()
+        self.cancel_event = cancel_event
+        initial_state = self.initial_state
+        selected_algo = self.algo_var.get()
         self.is_running = True
         self.reset_metrics()  # Clear old metrics right as a new search starts
         self.set_controls_state("disabled")
         self.lbl_status.config(text="Status: Thinking... Searching for path...")
 
-        threading.Thread(target=self.run_solver, daemon=True).start()
+        threading.Thread(
+            target=self.run_solver,
+            args=(search_id, initial_state, selected_algo, cancel_event),
+            daemon=True,
+        ).start()
 
-    def run_solver(self):
-        selected_algo = self.algo_var.get()
+    def run_solver(self, search_id, initial_state, selected_algo, cancel_event):
         start_time = time.time()
 
-        if selected_algo == "BFS":
-            path, state_trace, nodes_expanded, depth = solve_bfs(self.initial_state)
-        elif selected_algo == "DFS":
-            path, state_trace, nodes_expanded, depth = solve_dfs(self.initial_state)
-        elif selected_algo == "Iterative DFS":
-            path, state_trace, nodes_expanded, depth = solve_iddfs(self.initial_state)
-        elif selected_algo == "A* (Manhattan)":
-            path, state_trace, nodes_expanded, depth = solve_astar(
-                self.initial_state, heuristic_type="manhattan"
+        try:
+            if selected_algo == "BFS":
+                result = solve_bfs(initial_state, cancel_event=cancel_event)
+            elif selected_algo == "DFS":
+                result = solve_dfs(initial_state, cancel_event=cancel_event)
+            elif selected_algo == "Iterative DFS":
+                result = solve_iddfs(initial_state, cancel_event=cancel_event)
+            elif selected_algo == "A* (Manhattan)":
+                result = solve_astar(
+                    initial_state,
+                    heuristic_type="manhattan",
+                    cancel_event=cancel_event,
+                )
+            elif selected_algo == "A* (Euclidean)":
+                result = solve_astar(
+                    initial_state,
+                    heuristic_type="euclidean",
+                    cancel_event=cancel_event,
+                )
+            else:
+                raise ValueError(f"Unknown search algorithm: {selected_algo}")
+        except Exception as error:
+            self.root.after(
+                0, self.handle_solver_error, search_id, str(error)
             )
-        elif selected_algo == "A* (Euclidean)":
-            path, state_trace, nodes_expanded, depth = solve_astar(
-                self.initial_state, heuristic_type="euclidean"
-            )
+            return
 
         elapsed_time = (time.time() - start_time) * 1000
+        path, state_trace, nodes_expanded, depth = result
 
         # Schedule UI updates back on the main thread
         self.root.after(
             0,
             self.handle_solver_results,
+            search_id,
             path,
             state_trace,
             nodes_expanded,
@@ -364,11 +389,26 @@ class PuzzleGUI:
             elapsed_time,
         )
 
+    def handle_solver_error(self, search_id, error):
+        if search_id != self.search_id or not self.is_running:
+            return
+
+        self.is_running = False
+        self.cancel_event = None
+        self.lbl_status.config(text="Status: Search failed.")
+        self.set_controls_state("normal")
+        messagebox.showerror(
+            "Search Failed", f"The solver encountered an error:\n{error}"
+        )
+
     def handle_solver_results(
-        self, path, state_trace, nodes_expanded, depth, elapsed_time
+        self, search_id, path, state_trace, nodes_expanded, depth, elapsed_time
     ):
-        """Processes search results, updates UI labels, and initiates animation or alerts."""
-        if not self.is_running:
+        """
+        Processes search results, updates UI labels,
+        and initiates animation or alerts.
+        """
+        if search_id != self.search_id or not self.is_running:
             return  # Search was stopped by user
 
         if path is not None:
@@ -387,7 +427,7 @@ class PuzzleGUI:
 
             self.full_state_path = state_trace
             self.current_step = 0
-            self.animate_solution()
+            self.animate_solution(search_id)
         else:
             # Clear metrics when no path exists
             self._update_path_text("-")
@@ -404,9 +444,10 @@ class PuzzleGUI:
             self.lbl_status.config(text="Status: No solution path exists!")
             self.set_controls_state("normal")
             self.is_running = False
+            self.cancel_event = None
 
-    def animate_solution(self):
-        if not self.is_running:
+    def animate_solution(self, search_id):
+        if search_id != self.search_id or not self.is_running:
             return
 
         if self.current_step < len(self.full_state_path):
@@ -419,15 +460,22 @@ class PuzzleGUI:
             )
 
             self.current_step += 1
-            self.animation_job = self.root.after(600, self.animate_solution)
+            self.animation_job = self.root.after(
+                600, self.animate_solution, search_id
+            )
         else:
             self.lbl_status.config(text="Status: Goal State Reached!")
             self.set_controls_state("normal")
             self.is_running = False
+            self.cancel_event = None
 
     def stop_execution(self):
         """Stops any running search or animation and restores controls."""
+        self.search_id += 1
         self.is_running = False
+        if self.cancel_event is not None:
+            self.cancel_event.set()
+            self.cancel_event = None
         if self.animation_job:
             self.root.after_cancel(self.animation_job)
             self.animation_job = None
