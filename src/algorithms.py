@@ -1,8 +1,9 @@
 import heapq
 import math
 from collections import deque
+
 from src.node import Node
-from src.puzzle import get_neighbors, GOAL_STATE
+from src.puzzle import GOAL_STATE, get_neighbors
 
 GOAL_POSITIONS = {
     0: (0, 0),

@@ -6,7 +6,7 @@ class Node:
         self.depth = depth          # Search depth
         self.cost = cost            # g(n): Path cost from start
         self.heuristic = heuristic  # h(n): Heuristic value for A*
-        
+
     @property
     def total_cost(self):
         """f(n) = g(n) + h(n) for A* Search."""

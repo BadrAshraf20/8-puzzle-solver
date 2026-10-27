@@ -8,17 +8,17 @@ PRESET_EXAMPLES = {
 }
 
 def is_valid_board(flat_list):
-  """Validates if input contains exactly 9 numbers from 0 to 8 without duplicates."""
-  return len(flat_list) == 9 and sorted(flat_list) == list(range(9))
+    """Validates if input contains exactly 9 numbers from 0 to 8 without duplicates."""
+    return len(flat_list) == 9 and sorted(flat_list) == list(range(9))
 
 
 def parse_input_to_matrix(flat_list):
-  """Converts a flat list of 9 numbers into a 3x3 tuple matrix."""
-  return (
-      tuple(flat_list[0:3]),
-      tuple(flat_list[3:6]),
-      tuple(flat_list[6:9]),
-  )
+    """Converts a flat list of 9 numbers into a 3x3 tuple matrix."""
+    return (
+        tuple(flat_list[0:3]),
+        tuple(flat_list[3:6]),
+        tuple(flat_list[6:9]),
+    )
 
 def find_zero(state):
     """Locates the (row, col) position of the blank tile (0)."""
@@ -37,7 +37,7 @@ def get_neighbors(state):
         "Left": (0, -1),
         "Right": (0, 1)
     }
-    
+
     neighbors = []
     for action, (dr, dc) in moves.items():
         nr, nc = zero_r + dr, zero_c + dc
@@ -45,7 +45,7 @@ def get_neighbors(state):
             new_state = [list(row) for row in state]
             new_state[zero_r][zero_c], new_state[nr][nc] = new_state[nr][nc], new_state[zero_r][zero_c]
             neighbors.append((action, tuple(tuple(row) for row in new_state)))
-            
+
     return neighbors
 
 def print_board(state):

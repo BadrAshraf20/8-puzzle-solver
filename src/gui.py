@@ -2,13 +2,14 @@
 import threading
 import time
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox, scrolledtext, ttk
+
 from src.algorithms import solve_astar, solve_bfs, solve_dfs, solve_iddfs
 from src.puzzle import (
-    GOAL_STATE,
-    PRESET_EXAMPLES,
-    is_valid_board,
-    parse_input_to_matrix,
+  GOAL_STATE,
+  PRESET_EXAMPLES,
+  is_valid_board,
+  parse_input_to_matrix,
 )
 
 
@@ -161,6 +162,29 @@ class PuzzleGUI:
     )
     self.metrics_frame.pack(pady=10, fill="both", expand=True, padx=20)
 
+    tk.Label(
+        self.metrics_frame,
+        text="Path to goal:",
+        fg="#ecf0f1",
+        bg="#2c3e50",
+        anchor="w",
+        font=("Helvetica", 10, "bold"),
+    ).pack(fill="x", pady=(0, 2))
+
+    self.txt_path = scrolledtext.ScrolledText(
+        self.metrics_frame,
+        height=3,
+        wrap="word",
+        bg="#34495e",
+        fg="#ecf0f1",
+        font=("Helvetica", 9),
+        bd=1,
+        relief="solid",
+    )
+    self.txt_path.pack(fill="x", pady=(0, 8))
+    self.txt_path.insert("1.0", "-")
+    self.txt_path.config(state="disabled")
+
     self.lbl_cost = tk.Label(
         self.metrics_frame,
         text="Cost of path: -",
@@ -216,8 +240,16 @@ class PuzzleGUI:
     self.solve_btn.config(state=state)
     self.stop_btn.config(state="normal" if state == "disabled" else "disabled")
 
+  def _update_path_text(self, text):
+      """Helper to update read-only ScrolledText box for path display."""
+      self.txt_path.config(state="normal")
+      self.txt_path.delete("1.0", tk.END)
+      self.txt_path.insert("1.0", text)
+      self.txt_path.config(state="disabled")
+
   def reset_metrics(self):
       """Resets all metrics display labels back to default initial state."""
+      self._update_path_text("-")
       self.lbl_cost.config(text="Cost of path: -")
       self.lbl_expanded.config(text="Nodes expanded: -")
       self.lbl_depth.config(text="Search depth: -")
@@ -341,7 +373,11 @@ class PuzzleGUI:
       return  # Search was stopped by user
 
     if path is not None:
-      # 1. Update text metrics
+      # 1. Construct path string safely
+      path_str = " -> ".join(path) if path else "None (Start = Goal)"
+
+      # 2. Update text metrics
+      self._update_path_text(path_str)
       self.lbl_cost.config(text=f"Cost of path: {len(path)}")
       self.lbl_expanded.config(text=f"Nodes expanded: {nodes_expanded}")
       self.lbl_depth.config(text=f"Search depth: {depth}")
@@ -355,6 +391,7 @@ class PuzzleGUI:
       self.animate_solution()
     else:
       # Clear metrics when no path exists
+      self._update_path_text("-")
       self.lbl_cost.config(text="Cost of path: -")
       self.lbl_expanded.config(text=f"Nodes expanded: {nodes_expanded}")
       self.lbl_depth.config(text="Search depth: -")

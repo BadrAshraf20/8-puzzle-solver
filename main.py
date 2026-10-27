@@ -1,8 +1,15 @@
 # main.py
 import sys
-from src.gui import launch_gui
-from src.puzzle import GOAL_STATE, PRESET_EXAMPLES, is_valid_board, parse_input_to_matrix, print_board
+
 from src.algorithms import solve_bfs
+from src.gui import launch_gui
+from src.puzzle import (
+    PRESET_EXAMPLES,
+    is_valid_board,
+    parse_input_to_matrix,
+    print_board,
+)
+
 
 def get_cli_initial_state():
     print("Select initial board configuration mode:")
@@ -23,7 +30,7 @@ def get_cli_initial_state():
         except ValueError:
             print("[!] Invalid input numbers. Falling back to default example.\n")
 
-    return PRESET_EXAMPLES["Easy (2 moves)"]
+    return PRESET_EXAMPLES["Easy (3 moves)"]
 
 def run_cli():
     initial_state = get_cli_initial_state()
