@@ -10,7 +10,6 @@ PRESET_EXAMPLES = {
     "Hard (No solution)": ((0, 2, 3), (1, 4, 5), (8, 7, 6)),
 }
 
-# src/puzzle.py
 
 def count_inversions(state):
     """
@@ -32,6 +31,7 @@ def count_inversions(state):
 
     return inversions
 
+
 def is_solvable(state):
     """
     Determines whether a given board state can reach the goal state.
@@ -39,6 +39,7 @@ def is_solvable(state):
     the total inversion count is EVEN.
     """
     return count_inversions(state) % 2 == 0
+
 
 def is_valid_board(flat_list):
     """

@@ -412,8 +412,15 @@ class PuzzleGUI:
             return  # Search was stopped by user
 
         if path is not None:
-            # 1. Construct path string safely
-            path_str = " -> ".join(path) if path else "None (Start = Goal)"
+            # 1. Construct path string safely with truncation for long paths (e.g., deep DFS solutions)
+            if len(path) > 100:
+                path_str = (
+                    " -> ".join(path[:10])
+                    + f" ... [{len(path) - 20} steps omitted] ... "
+                    + " -> ".join(path[-10:])
+                )
+            else:
+                path_str = " -> ".join(path) if path else "None (Start = Goal)"
 
             # 2. Update text metrics
             self._update_path_text(path_str)
@@ -422,7 +429,7 @@ class PuzzleGUI:
             self.lbl_depth.config(text=f"Search depth: {depth}")
             self.lbl_time.config(text=f"Running time: {elapsed_time:.2f} ms")
 
-            # 2. Clear old negative status and set initial animation status
+            # 3. Clear old negative status and set initial animation status
             self.lbl_status.config(text="Status: Solution found! Animating...")
 
             self.full_state_path = state_trace
