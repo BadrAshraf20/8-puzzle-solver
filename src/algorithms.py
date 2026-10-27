@@ -76,46 +76,66 @@ def solve_bfs(initial_state, cancel_event=None):
 
 
 def solve_dfs(initial_state, max_depth=300, cancel_event=None):
-  if not is_solvable(initial_state):
-    return None, None, 0, 0
+    """
+    Solves the 8-puzzle using Depth-First Search (DFS).
+    - A stack (list) is used in exploring nodes.
+    - Highly memory-efficient compared to BFS when dealing with
+      massive tree-based problems.
+    """
+    # Solvability Guard: Instant return if mathematically unsolvable
+    if not is_solvable(initial_state):
+        return None, None, 0, 0
 
-  start_node = Node(initial_state)
-  frontier = [start_node]
-  visited = set()
-  nodes_expanded = 0
+    start_node = Node(initial_state)
+    frontier = [start_node]  # Use standard Python list as a LIFO stack
 
-  while frontier:
-    if cancel_event and cancel_event.is_set():
-      return None, None, nodes_expanded, 0
+    # Has this state appeared before, or not?
+    # Searching within a set happens much faster, in O(1) time.
+    visited = set()
+    nodes_expanded = 0
 
-    node = frontier.pop()
+    while frontier:
+        if cancel_event and cancel_event.is_set():
+            return None, None, nodes_expanded, 0
 
-    if node.state == GOAL_STATE:
-      path, states, curr = [], [], node
-      while curr:
-        states.append(curr.state)
-        if curr.action:
-          path.append(curr.action)
-        curr = curr.parent
-      return path[::-1], states[::-1], nodes_expanded, node.depth
+        node = frontier.pop()  # Pops from the top of the stack (LIFO)
 
-    if node.state in visited or node.depth >= max_depth:  # <--- Depth Guard
-      continue
+        if node.state == GOAL_STATE:
+            # Reconstruct path and move history
+            path = []
+            states = []
+            curr = node
 
-    visited.add(node.state)
-    nodes_expanded += 1
+            # We move backward, step by step, gathering the moves and sequences
+            # until we reach the starting point—the one whose "parent" is None.
+            while curr:
+                states.append(curr.state)
+                if curr.action:
+                    path.append(curr.action)
+                curr = curr.parent
+            return path[::-1], states[::-1], nodes_expanded, node.depth
 
-    for action, neighbor_state in get_neighbors(node.state):
-      if neighbor_state not in visited:
-        child_node = Node(
-            neighbor_state,
-            parent=node,
-            action=action,
-            depth=node.depth + 1,
-        )
-        frontier.append(child_node)
+        # Skip already expanded states or paths exceeding maximum depth boundary
+        if node.state in visited or node.depth >= max_depth:
+            continue
 
-  return None, None, nodes_expanded, 0
+        visited.add(node.state)
+        nodes_expanded += 1
+
+        # List all possible moves for the empty space for this board
+        # if not visited (child nodes).
+        for action, neighbor_state in get_neighbors(node.state):
+            if neighbor_state not in visited:
+                child_node = Node(
+                    neighbor_state,
+                    parent=node,
+                    action=action,
+                    depth=node.depth + 1
+                )
+                frontier.append(child_node)
+
+    # The Frontier queue is completely empty, and we haven’t found any solution.
+    return None, None, nodes_expanded, 0
 
 
 def depth_limited_dfs(
