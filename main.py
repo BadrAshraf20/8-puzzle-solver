@@ -18,7 +18,9 @@ def get_cli_initial_state():
     choice = input("Enter choice (1 or 2): ").strip()
 
     if choice == "2":
-        print("\nEnter 9 space-separated numbers (0-8) representing the board row by row:")
+        print(
+            "\nEnter 9 space-separated numbers (0-8) representing the board row by row:"
+        )
         print("Example: 1 2 5 3 4 0 6 7 8")
         user_input = input("Board: ").strip().split()
         try:
@@ -26,11 +28,14 @@ def get_cli_initial_state():
             if is_valid_board(flat_vals):
                 return parse_input_to_matrix(flat_vals)
             else:
-                print("[!] Invalid board! Must contain digits 0-8 with no duplicates. Falling back to default example.\n")
+                print(
+                    "[!] Invalid board! Must contain digits 0-8 with no duplicates. Falling back to default example.\n"
+                )
         except ValueError:
             print("[!] Invalid input numbers. Falling back to default example.\n")
 
     return PRESET_EXAMPLES["Easy (3 moves)"]
+
 
 def run_cli():
     initial_state = get_cli_initial_state()
@@ -54,6 +59,7 @@ def run_cli():
         print(f"Cost of path: {len(path)}")
         print(f"Nodes expanded: {nodes_expanded}")
         print(f"Search depth: {depth}")
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--cli":
