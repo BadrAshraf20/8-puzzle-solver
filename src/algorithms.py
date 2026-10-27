@@ -3,7 +3,7 @@ import math
 from collections import deque
 
 from src.node import Node
-from src.puzzle import GOAL_STATE, get_neighbors
+from src.puzzle import GOAL_STATE, get_neighbors, is_solvable
 
 GOAL_POSITIONS = {
     0: (0, 0),
@@ -20,6 +20,10 @@ GOAL_POSITIONS = {
 
 def solve_bfs(initial_state):
     """Solves the 8-puzzle using Breadth-First Search (BFS)."""
+    # Solvability Guard: Instant return if mathematically unsolvable
+    if not is_solvable(initial_state):
+        return None, None, 0, 0
+    
     start_node = Node(initial_state)
     frontier = deque([start_node])
     visited = {initial_state}
@@ -55,6 +59,10 @@ def solve_bfs(initial_state):
 
 def solve_dfs(initial_state):
     """Solves the 8-puzzle using Depth-First Search (DFS)."""
+    # Solvability Guard: Instant return if mathematically unsolvable
+    if not is_solvable(initial_state):
+        return None, None, 0, 0
+    
     start_node = Node(initial_state)
     frontier = [start_node]  # Use standard Python list as a LIFO stack
     visited = set()
@@ -135,6 +143,10 @@ def depth_limited_dfs(node, goal_state, limit, path_visited, nodes_expanded_coun
 
 def solve_iddfs(initial_state, max_depth=50):
     """Solves the 8-puzzle using Iterative Deepening DFS (IDDFS)."""
+    # Solvability Guard: Instant return if mathematically unsolvable
+    if not is_solvable(initial_state):
+        return None, None, 0, 0
+    
     total_nodes_expanded = [0]
 
     for limit in range(max_depth + 1):
@@ -199,6 +211,10 @@ def heuristic_euclidean(state):
 
 def solve_astar(initial_state, heuristic_type="manhattan"):
     """Solves the 8-puzzle using A* Search with Manhattan or Euclidean heuristic."""
+    # Solvability Guard: Instant return if mathematically unsolvable
+    if not is_solvable(initial_state):
+        return None, None, 0, 0
+    
     # Select heuristic function
     if heuristic_type == "manhattan":
         h_func = heuristic_manhattan

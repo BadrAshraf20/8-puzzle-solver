@@ -7,6 +7,27 @@ PRESET_EXAMPLES = {
     "Hard (No solution)": ((0, 2, 3), (1, 4, 5), (8, 7, 6)),
 }
 
+# src/puzzle.py
+
+def count_inversions(state):
+    """Calculates the inversion count of an 8-puzzle board state."""
+    # Flatten grid and ignore blank tile (0)
+    flat_board = [num for row in state for num in row if num != 0]
+    inversions = 0
+    
+    for i in range(len(flat_board)):
+        for j in range(i + 1, len(flat_board)):
+            if flat_board[i] > flat_board[j]:
+                inversions += 1
+                
+    return inversions
+
+def is_solvable(state):
+    """
+    Checks if an 8-puzzle state is solvable.
+    For standard goal ((0,1,2),(3,4,5),(6,7,8)), solvable if inversions count is EVEN.
+    """
+    return count_inversions(state) % 2 == 0
 
 def is_valid_board(flat_list):
     """Validates if input contains exactly 9 numbers from 0 to 8 without duplicates."""
